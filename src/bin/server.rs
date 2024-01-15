@@ -1,28 +1,9 @@
 use env_logger::Target;
 use log::LevelFilter;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::Mutex;
-use tokio::time::Duration;
+use tokio::net::UnixListener;
 
-use std::collections::HashMap;
-use std::io::ErrorKind;
-use std::path::Path;
-use std::sync::Arc;
-use tokio::join;
-
-use pdns_remote::{monitor, server};
+use pdns_remote::{constants::*, monitor, server};
 use pdns_remote::state::State;
-
-const SOCKET: &str = "/tmp/pdns-rust.socket";
-
-async fn listen(state: State) -> std::io::Result<()> {
-    Ok(())
-}
-
-async fn monitor(state: State) -> std::io::Result<()> {
-    Ok(())
-}
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {

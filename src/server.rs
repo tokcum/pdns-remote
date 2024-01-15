@@ -2,11 +2,12 @@ use std::io::ErrorKind;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{UnixListener, UnixStream};
+use tokio::time::timeout;
+
+use crate::constants::{CONNECTION_TIMEOUT, STREAM_READY_PAUSE};
 use crate::state::State;
 
-const SOCKET: &str = "/tmp/pdns-rust.socket";
-
-/// Run the server.
+/// Run the server on top of `UnixListener`.
 ///
 /// Accepts connections from the supplied listener. For each inbound connection,
 /// a task is spawned to handle that connection.
@@ -21,7 +22,7 @@ pub async fn run(listener: UnixListener, state: State) {
                 let state = state.clone();
                 tokio::spawn(async move {
                     // Process each client separately.
-                    handle_request(stream, state).await
+                    handle_connection(stream, state).await
                 });
             }
             Err(e) => {
@@ -32,19 +33,21 @@ pub async fn run(listener: UnixListener, state: State) {
     }
 }
 
-async fn handle_request(mut stream: UnixStream, state: State) -> std::io::Result<()> {
+/// Handle the connection based on `UnixStream`.
+///
+async fn handle_connection(mut stream: UnixStream, state: State) -> std::io::Result<()> {
     let fn_name = "handle_request";
 
     log::info!("{}: client connected.", fn_name);
 
     let (read, mut write) = stream.split();
 
-    // Ensure that socket is read- and writeable.
+    // Ensure that stream is read- and writeable.
     // todo: implement proper timeout by measuring duration
     let i = 0;
     while read.readable().await.is_err() || write.writable().await.is_err() {
-        log::warn!("{}: socket not yet read- or writeable.", fn_name);
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        log::warn!("{}: socket not yet readable / writeable.", fn_name);
+        tokio::time::sleep(Duration::from_millis(STREAM_READY_PAUSE as u64)).await;
 
         if i >= 5 {
             log::error!("{}: socket timed out.", fn_name);
@@ -59,8 +62,9 @@ async fn handle_request(mut stream: UnixStream, state: State) -> std::io::Result
     let mut writer = BufWriter::new(write);
     let mut lines = reader.lines();
 
-    // todo: implement timeout, count down when no new lines are received, reset counter when new line received
-    while let Some(line) = lines.next_line().await? {
+    // Loop as long as there is a new line available within `CONNECTION_TIMEOUT`.
+    // todo: write to log when timeout occurred.
+    while let Ok(Some(line)) = timeout(Duration::from_secs(CONNECTION_TIMEOUT as u64), lines.next_line()).await? {
         log::info! {"{} data read: {}", fn_name, line}
 
         let response = match state.get("www.google.de".to_string()) {
@@ -87,8 +91,6 @@ async fn handle_request(mut stream: UnixStream, state: State) -> std::io::Result
             }
         }
     }
-
-    //
 
     log::info!("{}: client disconnected.", fn_name);
 
