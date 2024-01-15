@@ -3,9 +3,46 @@ name = "pdns-remote"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Disable autodiscovery for tests, use test target (see below).
+autotests = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "pdns-remote"
+path = "src/bin/server.rs"
 
 [dependencies]
 env_logger = { version = "0.10.1" }
 log = { version = "0.4.20" }
-tokio = { version = "1.35.1", features = ["io-util", "net"] }
+serde = { version = "1.0.195", features = ["derive"] }
+serde_json = { version = "1.0.111", features = [] }
+
+# io-util: asynchronous counterpart to std::io.
+# macros: enables #[tokio::main] and #[tokio::test] macros.
+# net: non-blocking versions e.g. of Unix Domain Sockets.
+# rt: e.g. scheduling a new task on the Tokio runtime.
+# rt-multi-thread: using multi-threaded scheduler.
+# sync: synchronization primitives to share data.
+# time: e.g. repeating an operation at an interval.
+tokio = { version = "1.35.1", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = [] }
+
+# Dedicated target for tests to avoid having one crate per test file,
+# allows code sharing across multiple test files.
+# How to run tests:
+# - all tests: `cargo test`
+# - unit tests (lib) only: `cargo test --lib`
+# - unit tests (bins) only: `cargo test --bin '*'`
+# - integration tests only: `cargo test --test integration`
+# - doc tests only: `cargo test --doc`
+[[test]]
+name = "integration"
+path = "tests/lib.rs"
+
+# Speed up compile-time verified queries, see https://crates.io/crates/sqlx.
+[profile.dev.package.sqlx-macros]
+opt-level = 3
