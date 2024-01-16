@@ -1,11 +1,12 @@
 use std::time::Duration;
-use tokio::net::{UnixListener, UnixStream};
 use crate::state::State;
 
 /// Run the monitor.
 ///
 pub async fn run(state: State) {
     let fn_name = "run";
+
+    log::info!("{}, monitor started .", fn_name);
 
     loop {
         let state_m = state.clone();

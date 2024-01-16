@@ -40,25 +40,31 @@ async fn handle_connection(mut stream: UnixStream, state: State) -> std::io::Res
 
     log::info!("{}: client connected.", fn_name);
 
-    let (read, mut write) = stream.split();
+    let (read, write) = stream.split();
 
     // Ensure that stream is read- and writeable.
-    // todo: implement proper timeout by measuring duration
-    let i = 0;
-    while read.readable().await.is_err() || write.writable().await.is_err() {
-        log::warn!("{}: socket not yet readable / writeable.", fn_name);
-        tokio::time::sleep(Duration::from_millis(STREAM_READY_PAUSE as u64)).await;
-
-        if i >= 5 {
-            log::error!("{}: socket timed out.", fn_name);
+    match timeout(Duration::from_secs(STREAM_READY_PAUSE as u64), read.readable()).await {
+        Ok(_) => {}
+        Err(timeout) => {
+            log::error!("{}: connection got not readable, timed out after {} .", fn_name, timeout);
             return Err(std::io::Error::new(
                 ErrorKind::BrokenPipe,
-                "read or write failed",
+                "stream got not readable",
+            ));
+        }
+    }
+    match timeout(Duration::from_secs(STREAM_READY_PAUSE as u64), write.writable()).await {
+        Ok(_) => {}
+        Err(timeout) => {
+            log::error!("{}: connection got not writeable, timed out after {} .", fn_name, timeout);
+            return Err(std::io::Error::new(
+                ErrorKind::BrokenPipe,
+                "stream got not writable",
             ));
         }
     }
 
-    let mut reader = BufReader::new(read);
+    let reader = BufReader::new(read);
     let mut writer = BufWriter::new(write);
     let mut lines = reader.lines();
 
@@ -78,9 +84,9 @@ async fn handle_connection(mut stream: UnixStream, state: State) -> std::io::Res
             },
         };
 
-        match writer.write_all(&*response).await {
+        match writer.write_all(&response).await {
             Ok(_) => {
-                writer.flush().await;
+                writer.flush().await?;
             },
             Err(_) => {
                 log::error!("{}: write to socket failed.", fn_name);

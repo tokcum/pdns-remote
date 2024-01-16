@@ -27,3 +27,9 @@ impl State {
         self
     }
 }
+
+impl Default for State {
+    fn default() -> Self {
+        Self::new()
+    }
+}

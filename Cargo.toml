@@ -42,7 +42,3 @@ rand = { version = "0.8.5", features = [] }
 [[test]]
 name = "integration"
 path = "tests/lib.rs"
-
-# Speed up compile-time verified queries, see https://crates.io/crates/sqlx.
-[profile.dev.package.sqlx-macros]
-opt-level = 3

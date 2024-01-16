@@ -7,7 +7,6 @@ Each JSON query has two sections, ‘method’ and ‘parameters’.
 
 // https://doc.powerdns.com/authoritative/backends/remote.html#lookup
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

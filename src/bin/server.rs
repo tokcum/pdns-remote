@@ -13,10 +13,10 @@ async fn main() -> std::io::Result<()> {
     builder.filter_level(LevelFilter::Warn);
     builder.init();
 
-    let fn_name = "main";
+    let _fn_name = "main";
 
     // todo: write state to disk in a configurable interval
-    let mut state = State::new();
+    let state = State::new();
     state.test();
 
     let state_m = state.clone();
