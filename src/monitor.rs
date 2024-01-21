@@ -22,10 +22,10 @@ pub async fn run(state: State) {
 async fn handle_monitor(state: State) -> std::io::Result<()> {
     let fn_name = "handle_request";
 
-    log::info!("{}: run monitor", fn_name);
+    log::debug!("{}: run monitor", fn_name);
     state.incr("www.google.de".to_string());
     tokio::time::sleep(Duration::from_millis(1000)).await;
-    log::info!("{}: monitor run", fn_name);
+    log::debug!("{}: monitor run", fn_name);
 
     Ok(())
 }

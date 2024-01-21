@@ -1,10 +1,13 @@
 use std::io::ErrorKind;
 use std::time::Duration;
+use serde::de::Error;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::time::timeout;
 
 use crate::constants::{CONNECTION_TIMEOUT, STREAM_READY_PAUSE};
+use crate::pdns;
+use crate::pdns::{Query, Reply};
 use crate::state::State;
 
 /// Run the server on top of `UnixListener`.
@@ -71,22 +74,37 @@ async fn handle_connection(mut stream: UnixStream, state: State) -> std::io::Res
     // Loop as long as there is a new line available within `CONNECTION_TIMEOUT`.
     // todo: write to log when timeout occurred.
     while let Ok(Some(line)) = timeout(Duration::from_secs(CONNECTION_TIMEOUT as u64), lines.next_line()).await? {
-        log::info! {"{} data read: {}", fn_name, line}
+        log::info!("{} data read: {}", fn_name, line);
 
-        let response = match state.get("www.google.de".to_string()) {
-            None => b"{\"result\":false}\n".to_vec(),
-            Some(value) => {
-                if value % 2 == 0 {
-                    b"{\"result\":even}\n".to_vec()
-                } else {
-                    b"{\"result\":odd}\n".to_vec()
+        let query: Result<pdns::Query, serde_json::Error> = serde_json::from_str(&line);
+        let response = match query {
+            Ok(query) => {
+                match query {
+                    Query::Initialize(_) => b"{\"result\":true}\n".to_vec(),
+                    Query::Lookup(_) => b"{\"result\":false}\n".to_vec(),
+                    _ => b"{\"result\":false}\n".to_vec(),
                 }
-            },
+
+                /*
+                    Method::Init => b"{\"result\":true}\n".to_vec(),
+                    Method::GetAllDomains => {
+                        b"{\"result\":[{\"id\":1,\"zone\":\"example.com.\",\"masters\":[\"10.0.0.1\"],\"notified_serial\":2,\"serial\":2,\"last_check\":1464693331,\"kind\":\"native\"}]}\n".to_vec()
+                    },
+                    Method::GetDomainInfo => b"{\"result\":false}\n".to_vec(),
+                    Method::Lookup => b"{\"result\":false}\n".to_vec(),
+                    Method::Undefined => b"{\"result\":false}\n".to_vec(),
+                 */
+            }
+            Err(e) => {
+                log::error!("{}: deserialization error.", fn_name);
+                b"{\"result\":false}\n".to_vec()
+            }
         };
 
         match writer.write_all(&response).await {
             Ok(_) => {
                 writer.flush().await?;
+                log::info!("{}: wrote {} to socket.", fn_name, String::from_utf8(response).unwrap());
             },
             Err(_) => {
                 log::error!("{}: write to socket failed.", fn_name);

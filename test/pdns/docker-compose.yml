@@ -1,0 +1,21 @@
+---
+version: "3.7"
+
+services:
+  authorative:
+    image: "powerdns/pdns-auth-48:latest"
+    container_name: "pdns"
+    volumes:
+      - type: "bind"
+        source: "etc/powerdns/pdns.d"
+        target: "/etc/powerdns/pdns.d"
+      - type: "bind"
+        source: "pdns-remote.sock"
+        target: "/var/lib/powerdns/pdns-remote.sock"
+    #  - type: "bind"
+    #    source: "var/lib/powerdns/pdns.sqlite3"
+    #    target: "/var/lib/powerdns/pdns.sqlite3"
+    ports:
+      - "1053:53"
+      - "1053:53/udp"
+      - "8081:8081"

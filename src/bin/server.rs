@@ -9,7 +9,7 @@ use pdns_remote::state::State;
 async fn main() -> std::io::Result<()> {
     let mut builder = env_logger::builder();
     builder.target(Target::Stdout);
-    builder.filter_module("pdns_remote", LevelFilter::Trace);
+    builder.filter_module("pdns_remote", LevelFilter::Info);
     builder.filter_level(LevelFilter::Warn);
     builder.init();
 
